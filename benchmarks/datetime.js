@@ -1,6 +1,6 @@
 import Benchmark from "benchmark";
-import DateTime from "../src/datetime";
-import Settings from "../src/settings";
+import DateTime from "../src/datetime.js";
+import Settings from "../src/settings.js";
 
 function runDateTimeSuite() {
   return new Promise((resolve, reject) => {
@@ -8,8 +8,10 @@ function runDateTimeSuite() {
 
     const dt = DateTime.now();
 
+    const formatParser = DateTime.buildFormatParser("yyyy/MM/dd HH:mm:ss.SSS");
+
     suite
-      .add("DateTime.local", () => {
+      .add("DateTime.now", () => {
         DateTime.now();
       })
       .add("DateTime.fromObject with locale", () => {
@@ -17,6 +19,9 @@ function runDateTimeSuite() {
       })
       .add("DateTime.local with numbers", () => {
         DateTime.local(2017, 5, 15);
+      })
+      .add("DateTime.local with numbers and zone", () => {
+        DateTime.local(2017, 5, 15, 11, 7, 35, { zone: "America/New_York" });
       })
       .add("DateTime.fromISO", () => {
         DateTime.fromISO("1982-05-25T09:10:11.445Z");
@@ -32,6 +37,14 @@ function runDateTimeSuite() {
           zone: "America/Los_Angeles",
         });
       })
+      .add("DateTime.fromFormatParser", () => {
+        DateTime.fromFormatParser("1982/05/25 09:10:11.445", formatParser);
+      })
+      .add("DateTime.fromFormatParser with zone", () => {
+        DateTime.fromFormatParser("1982/05/25 09:10:11.445", formatParser, {
+          zone: "America/Los_Angeles",
+        });
+      })
       .add("DateTime#setZone", () => {
         dt.setZone("America/Los_Angeles");
       })
@@ -43,6 +56,13 @@ function runDateTimeSuite() {
       })
       .add("DateTime#toFormat with macro no cache", () => {
         dt.toFormat("T");
+        Settings.resetCaches();
+      })
+      .add("DateTime#format in german", () => {
+        dt.setLocale("de-De").toFormat("d. LLL. HH:mm");
+      })
+      .add("DateTime#format in german and no-cache", () => {
+        dt.setLocale("de-De").toFormat("d. LLL. HH:mm");
         Settings.resetCaches();
       })
       .add("DateTime#add", () => {

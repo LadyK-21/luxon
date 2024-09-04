@@ -595,6 +595,77 @@ test("DateTime.fromObject() w/weeks defaults low-order values to their minimums"
   expect(dt.millisecond).toBe(0);
 });
 
+test("DateTime.fromObject() w/locale weeks defaults low-order values to their minimums", () => {
+  const dt = DateTime.fromObject({ localWeekYear: 2016 }, { locale: "en-US" });
+
+  expect(dt.localWeekYear).toBe(2016);
+  expect(dt.localWeekNumber).toBe(1);
+  expect(dt.localWeekday).toBe(1);
+  expect(dt.hour).toBe(0);
+  expect(dt.minute).toBe(0);
+  expect(dt.second).toBe(0);
+  expect(dt.millisecond).toBe(0);
+});
+
+test("DateTime.fromObject() w/locale weeks defaults high-order values to the current date", () => {
+  const dt = DateTime.fromObject({ localWeekday: 2 }, { locale: "en-US" }),
+    now = DateTime.local({ locale: "en-US" });
+
+  expect(dt.localWeekYear).toBe(now.localWeekYear);
+  expect(dt.localWeekNumber).toBe(now.localWeekNumber);
+  expect(dt.localWeekday).toBe(2);
+});
+
+test("DateTime.fromObject() w/locale weeks handles fully specified dates", () => {
+  const dt = DateTime.fromObject(
+    {
+      localWeekYear: 2022,
+      localWeekNumber: 2,
+      localWeekday: 3,
+      hour: 9,
+      minute: 23,
+      second: 54,
+      millisecond: 123,
+    },
+    { locale: "en-US" }
+  );
+  expect(dt.localWeekYear).toBe(2022);
+  expect(dt.localWeekNumber).toBe(2);
+  expect(dt.localWeekday).toBe(3);
+  expect(dt.year).toBe(2022);
+  expect(dt.month).toBe(1);
+  expect(dt.day).toBe(4);
+});
+
+test("DateTime.fromObject() w/localWeekYears handles skew with Gregorian years", () => {
+  let dt = DateTime.fromObject(
+    { localWeekYear: 2022, localWeekNumber: 1, localWeekday: 1 },
+    { locale: "en-US" }
+  );
+  expect(dt.localWeekYear).toBe(2022);
+  expect(dt.localWeekNumber).toBe(1);
+  expect(dt.localWeekday).toBe(1);
+  expect(dt.year).toBe(2021);
+  expect(dt.month).toBe(12);
+  expect(dt.day).toBe(26);
+
+  dt = DateTime.fromObject(
+    { localWeekYear: 2009, localWeekNumber: 53, localWeekday: 5 },
+    { locale: "de-DE" }
+  );
+  expect(dt.localWeekYear).toBe(2009);
+  expect(dt.localWeekNumber).toBe(53);
+  expect(dt.localWeekday).toBe(5);
+  expect(dt.year).toBe(2010);
+  expect(dt.month).toBe(1);
+  expect(dt.day).toBe(1);
+});
+
+test("DateTime.fromObject throws when both locale based weeks and ISO-weeks are specified", () => {
+  expect(() => DateTime.fromObject({ localWeekYear: 2022, weekNumber: 12 })).toThrow();
+  expect(() => DateTime.fromObject({ localWeekYear: 2022, weekday: 2 })).toThrow();
+});
+
 test("DateTime.fromObject() w/ordinals handles fully specified dates", () => {
   const dt = DateTime.fromObject({
     year: 2016,
@@ -663,7 +734,7 @@ test("DateTime.fromObject accepts a locale", () => {
 
 test("DateTime.fromObject accepts a locale with calendar and numbering identifiers", () => {
   const res = DateTime.fromObject({}, { locale: "be-u-ca-coptic-nu-mong" });
-  expect(res.locale).toBe("be");
+  expect(res.locale).toBe("be-u-ca-coptic-nu-mong");
   expect(res.outputCalendar).toBe("coptic");
   expect(res.numberingSystem).toBe("mong");
 });
@@ -677,7 +748,7 @@ test("DateTime.fromObject accepts a locale string with weird junk in it", () => 
       }
     );
 
-    expect(res.locale).toBe("be");
+    expect(res.locale).toBe("be-u-ca-coptic-ca-islamic");
 
     // "coptic" is right, but some versions of Node 10 give "gregory"
     expect(res.outputCalendar === "gregory" || res.outputCalendar === "coptic").toBe(true);
@@ -695,7 +766,7 @@ test("DateTime.fromObject overrides the locale string with explicit settings", (
     }
   );
 
-  expect(res.locale).toBe("be");
+  expect(res.locale).toBe("be-u-ca-coptic-nu-mong");
   expect(res.outputCalendar).toBe("islamic");
   expect(res.numberingSystem).toBe("thai");
 });
@@ -810,4 +881,19 @@ test("DateTime.fromHTTP is invalid when weekday is not consistent", () => {
 test("DateTime.fromObject takes a undefined to mean {}", () => {
   const res = DateTime.fromObject();
   expect(res.year).toBe(new Date().getFullYear());
+});
+
+test("private language subtags don't break unicode subtags", () => {
+  const res = DateTime.fromObject(
+    {},
+    {
+      locale: "be-u-ca-coptic-nu-mong-x-twain",
+      numberingSystem: "thai",
+      outputCalendar: "islamic",
+    }
+  );
+
+  expect(res.locale).toBe("be-u-ca-coptic-nu-mong");
+  expect(res.outputCalendar).toBe("islamic");
+  expect(res.numberingSystem).toBe("thai");
 });

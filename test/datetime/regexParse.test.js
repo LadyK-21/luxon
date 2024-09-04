@@ -1,6 +1,7 @@
 /* global test expect */
 
 import { DateTime } from "../../src/luxon";
+import { withNow } from "../helpers";
 
 //------
 // .fromISO
@@ -624,6 +625,28 @@ test("DateTime.fromISO() accepts extended zones on bare times", () => {
   });
 });
 
+withNow(
+  "DateTime.fromISO() accepts extended zones on bare times when UTC and zone are in different days",
+  DateTime.fromISO("2023-11-20T23:30:00.000Z"),
+  () => {
+    const { year, month, day } = DateTime.now().setZone("Europe/Paris");
+    let dt = DateTime.fromISO("10:23:54[Europe/Paris]", {
+      setZone: true,
+    });
+    expect(dt.isValid).toBe(true);
+    expect(dt.zoneName).toBe("Europe/Paris");
+    expect(dt.toObject()).toEqual({
+      year,
+      month,
+      day,
+      hour: 10,
+      minute: 23,
+      second: 54,
+      millisecond: 0,
+    });
+  }
+);
+
 test("DateTime.fromISO() accepts some technically incorrect stuff", () => {
   // these are formats that aren't technically valid but we parse anyway.
   // Testing them more to document them than anything else
@@ -807,6 +830,20 @@ test("DateTime.fromHTTP() can parse RFC 850", () => {
     year: 1994,
     month: 11,
     day: 6,
+    hour: 8,
+    minute: 49,
+    second: 37,
+    millisecond: 0,
+  });
+});
+
+test("DateTime.fromHTTP() can parse RFC 850 on Wednesday", () => {
+  const dt = DateTime.fromHTTP("Wednesday, 29-Jun-22 08:49:37 GMT");
+  expect(dt.isValid).toBe(true);
+  expect(dt.toUTC().toObject()).toEqual({
+    year: 2022,
+    month: 6,
+    day: 29,
     hour: 8,
     minute: 49,
     second: 37,

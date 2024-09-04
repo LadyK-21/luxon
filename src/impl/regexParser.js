@@ -3,7 +3,6 @@ import {
   signedOffset,
   parseInteger,
   parseMillis,
-  ianaRegex,
   isUndefined,
   parseFloating,
 } from "./util.js";
@@ -20,6 +19,8 @@ import IANAZone from "../zones/IANAZone.js";
  * combineExtractors() does the work of combining them, keeping track of the cursor through multiple extractions.
  * Some extractions are super dumb and simpleParse and fromStrings help DRY them.
  */
+
+const ianaRegex = /[A-Za-z_+-]{1,256}(?::?\/[A-Za-z0-9_+-]{1,256}(?:\/[A-Za-z0-9_+-]{1,256})?)?/;
 
 function combineRegexes(...regexes) {
   const full = regexes.reduce((f, r) => f + r.source, "");
@@ -224,7 +225,7 @@ function extractRFC2822(match) {
 function preprocessRFC2822(s) {
   // Remove comments and folding whitespace and replace multiple-spaces with a single space
   return s
-    .replace(/\([^)]*\)|[\n\t]/g, " ")
+    .replace(/\([^()]*\)|[\n\t]/g, " ")
     .replace(/(\s\s+)/g, " ")
     .trim();
 }
@@ -234,7 +235,7 @@ function preprocessRFC2822(s) {
 const rfc1123 =
     /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), (\d\d) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4}) (\d\d):(\d\d):(\d\d) GMT$/,
   rfc850 =
-    /^(Monday|Tuesday|Wedsday|Thursday|Friday|Saturday|Sunday), (\d\d)-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d\d) (\d\d):(\d\d):(\d\d) GMT$/,
+    /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), (\d\d)-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d\d) (\d\d):(\d\d):(\d\d) GMT$/,
   ascii =
     /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ( \d|\d\d) (\d\d):(\d\d):(\d\d) (\d{4})$/;
 

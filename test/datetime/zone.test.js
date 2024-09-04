@@ -83,9 +83,14 @@ test('DateTime#setZone accepts "local"', () => {
   expect(zoned.offset).toBe(DateTime.local().offset);
 });
 
-test('DateTime#setZone accepts "system" and uses the default zone', () => {
+test('DateTime#setZone accepts "system" and uses the system zone', () => {
+  const systemZone = Settings.defaultZone.name;
+  expect(DateTime.utc().setZone("system").zoneName).toBe(systemZone);
+});
+
+test('DateTime#setZone accepts "default" and uses the default zone', () => {
   Helpers.withDefaultZone("Europe/Paris", () => {
-    expect(DateTime.utc().setZone("system").zoneName).toBe("Europe/Paris");
+    expect(DateTime.utc().setZone("default").zoneName).toBe("Europe/Paris");
   });
 });
 
@@ -235,6 +240,31 @@ test("DateTime#isInDST() returns true for 1974 whole year in USA- from January 6
   const zoned = dt().setZone("America/Los_Angeles");
   expect(zoned.set({ year: 1974, month: 1, day: 6 }).isInDST).toBe(true);
   expect(zoned.set({ year: 1974, month: 10, day: 27 }).isInDST).toBe(false);
+});
+
+//------
+// #getPossibleOffsets()
+//------
+test("DateTime#getPossibleOffsets() returns the same DateTime for fixed zones", () => {
+  const fixedZoned = dt().setZone("+02:00");
+  const possibleOffsets = fixedZoned.getPossibleOffsets();
+  expect(possibleOffsets).toHaveLength(1);
+  expect(possibleOffsets[0]).toBe(fixedZoned);
+});
+
+test("DateTime#getPossibleOffsets() returns the same DateTime when not at an ambiguous local time", () => {
+  const zoned = DateTime.fromISO("2023-01-01T15:00", { zone: "Europe/Berlin" });
+  const possibleOffsets = zoned.getPossibleOffsets();
+  expect(possibleOffsets).toHaveLength(1);
+  expect(possibleOffsets[0]).toBe(zoned);
+});
+
+test("DateTime#getPossibleOffsets() returns the possible DateTimes when at an ambiguous local time", () => {
+  const zoned = DateTime.fromISO("2023-10-29T02:30:00+01:00", { zone: "Europe/Berlin" });
+  const possibleOffsets = zoned.getPossibleOffsets();
+  expect(possibleOffsets).toHaveLength(2);
+  expect(possibleOffsets[0].toISO()).toBe("2023-10-29T02:30:00.000+02:00");
+  expect(possibleOffsets[1].toISO()).toBe("2023-10-29T02:30:00.000+01:00");
 });
 
 //------

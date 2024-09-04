@@ -295,12 +295,37 @@ test("DateTime#diff results in a duration with the same locale", () => {
 
 // see https://github.com/moment/luxon/issues/487
 test("DateTime#diff results works when needing to backtrack months", () => {
-  const left = DateTime.fromJSDate(new Date(1554036127038));
-  const right = DateTime.fromJSDate(new Date(1554122527128));
+  const left = DateTime.fromJSDate(new Date(1554036127038)); // 2019-03-31T12:42:07.038Z
+  const right = DateTime.fromJSDate(new Date(1554122527128)); // 2019-04-01T12:42:07.128Z
 
   const diff = right.diff(left, ["months", "days", "hours"]);
   expect(diff.months).toBe(0);
   expect(diff.days).toBe(1);
+});
+
+// see https://github.com/moment/luxon/issues/1301
+test("DateTime#diff handles Feb-29 edge case logic for higher order units in a manner consistent with DateTime#plus", () => {
+  const left = DateTime.fromISO("2020-02-29");
+  const right = DateTime.fromISO("2021-04-01");
+
+  const diff = right.diff(left, ["years", "months", "days"]);
+  expect(diff.days).toBe(3);
+  expect(left.plus(diff).equals(right)).toBe(true);
+});
+
+// see https://github.com/moment/luxon/issues/1165
+test("DateTime#diff handles datetimes whose dayDiff is off by 2 days instead of the usual 1 due to zone differences", () => {
+  // Notice how `end` is 5 days away when only looking at calendar days ignoring time zones,
+  // but actually the diff is 3 days and 23 hours (days are off by 2)
+  // because Europe/Madrid here has an offset of +02:00.
+  const start = DateTime.fromISO("2022-05-05T23:00", { zone: "UTC" });
+  const end = DateTime.fromISO("2022-05-10T00:00", { zone: "Europe/Madrid" });
+
+  const diff1 = end.diff(start, ["days", "hours", "minutes"]).toObject();
+  expect(diff1).toEqual({ days: 3, hours: 23, minutes: 0 });
+
+  const diff2 = end.diff(start, ["days"]);
+  expect(diff2.days).toBeCloseTo(3.958333, 6);
 });
 
 //------

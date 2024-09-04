@@ -96,6 +96,65 @@ test("Duration#shiftTo boils hours down to hours and minutes", () => {
   });
 });
 
+test("Duration#shiftTo handles mixed units", () => {
+  const dur = Duration.fromObject({ weeks: -1, days: 14 });
+  expect(dur.shiftTo("years", "months", "weeks").toObject()).toEqual({
+    years: 0,
+    months: 0,
+    weeks: 1,
+  });
+});
+
+test("Duration#shiftTo does not produce unnecessary fractions in higher order units", () => {
+  const duration = Duration.fromObject(
+    { years: 2.5, weeks: -1 },
+    { conversionAccuracy: "longterm" }
+  );
+  const shifted = duration.shiftTo("years", "weeks", "minutes").toObject();
+  expect(shifted.years).toBe(2);
+  expect(shifted.weeks).toBe(25);
+  expect(shifted.minutes).toBeCloseTo(894.6, 5);
+});
+
+//------
+// #shiftToAll()
+//-------
+test("Duration#shiftToAll shifts to all available units", () => {
+  const dur = Duration.fromMillis(5760000).shiftToAll();
+  expect(dur.toObject()).toEqual({
+    years: 0,
+    months: 0,
+    weeks: 0,
+    days: 0,
+    hours: 1,
+    minutes: 36,
+    seconds: 0,
+    milliseconds: 0,
+  });
+});
+
+test("Duration#shiftToAll does not produce unnecessary fractions in higher order units", () => {
+  const duration = Duration.fromObject(
+    { years: 2.5, weeks: -1, seconds: 0 },
+    { conversionAccuracy: "longterm" }
+  );
+  const toAll = duration.shiftToAll().toObject();
+  expect(toAll.years).toBe(2);
+  expect(toAll.months).toBe(5);
+  expect(toAll.weeks).toBe(3);
+  expect(toAll.days).toBe(2);
+  expect(toAll.hours).toBe(10);
+  expect(toAll.minutes).toBe(29);
+  expect(toAll.seconds).toBe(6);
+  expect(toAll.milliseconds).toBeCloseTo(0, 5);
+});
+
+test("Duration#shiftToAll maintains invalidity", () => {
+  const dur = Duration.invalid("because").shiftToAll();
+  expect(dur.isValid).toBe(false);
+  expect(dur.invalidReason).toBe("because");
+});
+
 //------
 // #normalize()
 //-------
@@ -166,6 +225,10 @@ test("Duration#normalize handles the full grid partially negative durations", ()
       { months: 0, days: -28 },
       { months: 0, days: -28 },
     ],
+    [
+      { hours: 96, minutes: 0, seconds: -10 },
+      { hours: 95, minutes: 59, seconds: 50 },
+    ],
   ];
 
   sets.forEach(([from, to]) => {
@@ -205,6 +268,64 @@ test("Duration#normalize can convert all unit pairs", () => {
       expect(normalizedAccurateDuration[units[j]]).not.toBe(NaN);
     }
   }
+});
+
+test("Duration#normalize moves fractions to lower-order units", () => {
+  expect(Duration.fromObject({ years: 2.5, days: 0, hours: 0 }).normalize().toObject()).toEqual({
+    years: 2,
+    days: 182,
+    hours: 12,
+  });
+  expect(Duration.fromObject({ years: -2.5, days: 0, hours: 0 }).normalize().toObject()).toEqual({
+    years: -2,
+    days: -182,
+    hours: -12,
+  });
+  expect(Duration.fromObject({ years: 2.5, days: 12, hours: 0 }).normalize().toObject()).toEqual({
+    years: 2,
+    days: 194,
+    hours: 12,
+  });
+  expect(Duration.fromObject({ years: 2.5, days: 12.25, hours: 0 }).normalize().toObject()).toEqual(
+    { years: 2, days: 194, hours: 18 }
+  );
+});
+
+test("Duration#normalize does not produce fractions in higher order units when rolling up negative lower order unit values", () => {
+  const normalized = Duration.fromObject(
+    { years: 100, months: 0, weeks: -1, days: 0 },
+    { conversionAccuracy: "longterm" }
+  )
+    .normalize()
+    .toObject();
+  expect(normalized.years).toBe(99);
+  expect(normalized.months).toBe(11);
+  expect(normalized.weeks).toBe(3);
+  expect(normalized.days).toBeCloseTo(2.436875, 7);
+});
+
+//------
+// #rescale()
+//-------
+test("Duration#rescale normalizes, shifts to all units and remove units with a value of 0", () => {
+  const sets = [
+    [{ milliseconds: 90000 }, { minutes: 1, seconds: 30 }],
+    [
+      { minutes: 70, milliseconds: 12100 },
+      { hours: 1, minutes: 10, seconds: 12, milliseconds: 100 },
+    ],
+    [{ months: 2, days: -30 }, { months: 1 }],
+  ];
+
+  sets.forEach(([from, to]) => {
+    expect(Duration.fromObject(from).rescale().toObject()).toEqual(to);
+  });
+});
+
+test("Duration#rescale maintains invalidity", () => {
+  const dur = Duration.invalid("because").rescale();
+  expect(dur.isValid).toBe(false);
+  expect(dur.invalidReason).toBe("because");
 });
 
 //------

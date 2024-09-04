@@ -1,6 +1,7 @@
 /* global test expect */
 
 import { DateTime, Duration } from "../../src/luxon";
+import { casualMatrix } from "../../src/duration";
 
 function createDateTime() {
   return DateTime.fromObject({
@@ -103,6 +104,13 @@ test("DateTime#plus works across the 100 barrier", () => {
   const d = DateTime.fromISO("0099-12-31").plus({ day: 2 });
   expect(d.year).toBe(100);
   expect(d.month).toBe(1);
+  expect(d.day).toBe(2);
+});
+
+test("DateTime#plus works across the 100 barrier when passing through February", () => {
+  const d = DateTime.fromISO("0099-12-31").plus({ day: 61 });
+  expect(d.year).toBe(100);
+  expect(d.month).toBe(3);
   expect(d.day).toBe(2);
 });
 

@@ -1,7 +1,7 @@
 /* global test expect */
 import { DateTime } from "../../src/luxon";
 import Helpers from "../helpers";
-
+import Settings from "../../src/settings";
 import { ConflictingSpecificationError } from "../../src/errors";
 
 //------
@@ -136,9 +136,22 @@ test("DateTime.fromFormat() with yyyyyy strictly parses extended years", () => {
 });
 
 test("DateTime.fromFormat() defaults yy to the right century", () => {
-  expect(DateTime.fromFormat("55", "yy").year).toBe(2055);
-  expect(DateTime.fromFormat("70", "yy").year).toBe(1970);
-  expect(DateTime.fromFormat("1970", "yy").year).toBe(1970);
+  expect(DateTime.fromFormat("60", "yy").year).toBe(2060);
+  expect(DateTime.fromFormat("61", "yy").year).toBe(1961);
+  expect(DateTime.fromFormat("1960", "yy").year).toBe(1960);
+});
+
+test("DateTime.fromFormat() respects Settings.twoDigitCutoffYear when parsing yy to the right century", () => {
+  const oldTwoDigitCutoffYear = Settings.twoDigitCutoffYear;
+
+  try {
+    Settings.twoDigitCutoffYear = 50;
+    expect(DateTime.fromFormat("50", "yy").year).toBe(2050);
+    expect(DateTime.fromFormat("51", "yy").year).toBe(1951);
+    expect(DateTime.fromFormat("1950", "yy").year).toBe(1950);
+  } finally {
+    Settings.twoDigitCutoffYear = oldTwoDigitCutoffYear;
+  }
 });
 
 test("DateTime.fromFormat() parses hours", () => {
@@ -415,6 +428,25 @@ test("DateTime.fromFormat() accepts weekYear by itself", () => {
   expect(d.weekYear).toBe(2004);
   expect(d.weekNumber).toBe(1);
   expect(d.weekday).toBe(1);
+});
+
+test("DateTime.fromFormat() defaults kk to the right century", () => {
+  expect(DateTime.fromFormat("60", "kk").weekYear).toBe(2060);
+  expect(DateTime.fromFormat("61", "kk").weekYear).toBe(1961);
+  expect(DateTime.fromFormat("1960", "kk").weekYear).toBe(1960);
+});
+
+test("DateTime.fromFormat() respects Settings.twoDigitCutoffYear when parsing two digit weekYear to the right century", () => {
+  const oldTwoDigitCutoffYear = Settings.twoDigitCutoffYear;
+
+  try {
+    Settings.twoDigitCutoffYear = 50;
+    expect(DateTime.fromFormat("50", "kk").weekYear).toBe(2050);
+    expect(DateTime.fromFormat("51", "kk").weekYear).toBe(1951);
+    expect(DateTime.fromFormat("1950", "kk").weekYear).toBe(1950);
+  } finally {
+    Settings.twoDigitCutoffYear = oldTwoDigitCutoffYear;
+  }
 });
 
 test("DateTime.fromFormat() accepts weekNumber by itself", () => {
@@ -758,6 +790,12 @@ test("DateTime.fromFormat() parses localized macro tokens", () => {
   }
 });
 
+test("DateTime.fromFormat() allows non-breaking white-space to be substituted inside macro-tokens", () => {
+  expect(DateTime.fromFormat("5:54 PM", "t", { locale: "en-US" }).isValid).toBe(true);
+  expect(DateTime.fromFormat("5:54 PM", "t", { locale: "en-US" }).isValid).toBe(true);
+  expect(DateTime.fromFormat("5:54\nPM", "t", { locale: "en-US" }).isValid).toBe(false);
+});
+
 test("DateTime.fromFormat() throws if you don't provide a format", () => {
   expect(() => DateTime.fromFormat("yo")).toThrowError();
 });
@@ -784,7 +822,7 @@ test("DateTime.fromFormat validates weekdays", () => {
   expect(dt.isValid).toBe(false);
 });
 
-test("DateTime.fromFormat containg special regex token", () => {
+test("DateTime.fromFormat containing special regex token", () => {
   const ianaFormat = "yyyy-MM-dd'T'HH-mm[z]";
   const dt = DateTime.fromFormat("2019-01-14T11-30[Indian/Maldives]", ianaFormat, {
     setZone: true,
@@ -803,6 +841,13 @@ test("DateTime.fromFormat containg special regex token", () => {
   expect(
     DateTime.fromFormat("2019-01-14T11-30\tIndian/Maldives\t", "yyyy-MM-dd'T'HH-mm't'z't'").isValid
   ).toBe(false);
+});
+
+// #1362
+test("DateTime.fromFormat only an offset", () => {
+  const dt = DateTime.fromFormat("+0100", "ZZZ", { setZone: true });
+  expect(dt.isValid).toBe(true);
+  expect(dt.offset).toBe(60);
 });
 
 //------
@@ -1111,8 +1156,8 @@ test("DateTime.fromFormatExplain() takes the same options as fromFormat", () => 
 // .fromStringExplain
 //-------
 test("DateTime.fromStringExplain is an alias for DateTime.fromFormatExplain", () => {
-  const ff = DateTime.fromFormatExplain("1982/05/25 09:10:11.445", "yyyy/MM/dd HH:mm:ss.SSS"),
-    fs = DateTime.fromStringExplain("1982/05/25 09:10:11.445", "yyyy/MM/dd HH:mm:ss.SSS");
+  const ff = DateTime.fromStringExplain("1982/05/25 09:10:11.445", "yyyy/MM/dd HH:mm:ss.SSS"),
+    fs = DateTime.fromFormatExplain("1982/05/25 09:10:11.445", "yyyy/MM/dd HH:mm:ss.SSS");
 
   expect(ff).toEqual(fs);
 });
@@ -1122,8 +1167,85 @@ test("DateTime.fromStringExplain is an alias for DateTime.fromFormatExplain", ()
 //-------
 
 test("DateTime.fromString is an alias for DateTime.fromFormat", () => {
-  const ff = DateTime.fromFormat("1982/05/25 09:10:11.445", "yyyy/MM/dd HH:mm:ss.SSS"),
-    fs = DateTime.fromString("1982/05/25 09:10:11.445", "yyyy/MM/dd HH:mm:ss.SSS");
+  const ff = DateTime.fromString("1982/05/25 09:10:11.445", "yyyy/MM/dd HH:mm:ss.SSS"),
+    fs = DateTime.fromFormat("1982/05/25 09:10:11.445", "yyyy/MM/dd HH:mm:ss.SSS");
 
   expect(ff).toEqual(fs);
+});
+
+//------
+// .parseFormatForOpts
+//-------
+
+test("DateTime.parseFormatForOpts returns a parsing format", () => {
+  const format = DateTime.parseFormatForOpts(DateTime.DATETIME_FULL);
+  expect(format).toEqual("MMMM d, yyyyy at h:m a ZZZ");
+});
+
+test("DateTime.parseFormatForOpts returns a parsing format", () => {
+  const format = DateTime.parseFormatForOpts("");
+  expect(format).toBeNull();
+});
+test("DateTime.parseFormatForOpts respects the hour cycle", () => {
+  const enFormat = DateTime.parseFormatForOpts(DateTime.TIME_SIMPLE, { locale: "en-US" });
+  expect(enFormat).toEqual("h:m a");
+
+  const deFormat = DateTime.parseFormatForOpts(DateTime.TIME_SIMPLE, { locale: "de-DE" });
+  expect(deFormat).toEqual("H:m");
+});
+test("DateTime.parseFormatForOpts respects the hour cycle when forced by the options", () => {
+  const format = DateTime.parseFormatForOpts(DateTime.TIME_24_SIMPLE, { locale: "en-US" });
+  expect(format).toEqual("H:m");
+});
+
+//------
+// .expandFormat
+//-------
+//
+test("DateTime.expandFormat works with the default locale", () => {
+  const format = DateTime.expandFormat("D");
+  expect(format).toBe("M/d/yyyyy");
+});
+
+test("DateTime.expandFormat works with other locales", () => {
+  const format = DateTime.expandFormat("D", { locale: "en-gb" });
+  expect(format).toBe("d/M/yyyyy");
+});
+
+test("DateTime.expandFormat respects the hour cycle", () => {
+  const enFormat = DateTime.expandFormat("t", { locale: "en-US" });
+  expect(enFormat).toBe("h:m a");
+
+  const deFormat = DateTime.expandFormat("t", { locale: "de-DE" });
+  expect(deFormat).toBe("H:m");
+});
+
+test("DateTime.expandFormat respects the hour cycle when forced by the macro token", () => {
+  const format = DateTime.expandFormat("T", { locale: "en-US" });
+  expect(format).toBe("H:m");
+});
+
+//------
+// .fromFormatParser
+//-------
+
+test("DateTime.fromFormatParser behaves equivalently to DateTime.fromFormat", () => {
+  const dateTimeStr = "1982/05/25 09:10:11.445";
+  const format = "yyyy/MM/dd HH:mm:ss.SSS";
+  const formatParser = DateTime.buildFormatParser(format);
+  const ff1 = DateTime.fromFormat(dateTimeStr, format),
+    ffP1 = DateTime.fromFormatParser(dateTimeStr, formatParser);
+
+  expect(ffP1).toEqual(ff1);
+  expect(ffP1.isValid).toBe(true);
+});
+
+test("DateTime.fromFormatParser throws error when used with a different locale than it was created with", () => {
+  const format = "yyyy/MM/dd HH:mm:ss.SSS";
+  const formatParser = DateTime.buildFormatParser(format, { locale: "es-ES" });
+  expect(() =>
+    DateTime.fromFormatParser("1982/05/25 09:10:11.445", formatParser, { locale: "es-MX" })
+  ).toThrowError(
+    "fromFormatParser called with a locale of Locale(es-MX, null, null), but the format parser was created for Locale(es-ES, null, null)"
+  );
 });
