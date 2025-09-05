@@ -1,5 +1,8 @@
 # Changelog
 
+# 3.7.2 (2025-07-09)
+- Fix ES6 packaging
+
 # 3.7.1 (2025-07-09)
 - Revert change in ES6 packaging
 
